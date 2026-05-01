@@ -1,3 +1,5 @@
+[English](./NOTIFICATIONS.en.md) | 中文
+
 # 通知提醒配置
 
 Open MedKit 支持每日自动检查过期 / 即将过期药品，并通过以下渠道发送提醒：

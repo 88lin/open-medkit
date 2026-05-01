@@ -1,10 +1,12 @@
-# Deployment Guide
+[English](./DEPLOY.en.md) | 中文
 
-## Docker Compose (recommended)
+# 部署指南
+
+## Docker Compose（推荐）
 
 最简部署方式，适用于任何安装了 Docker 的机器（VPS、NAS、本地服务器等）。
 
-### 1. Clone & Configure
+### 1. 拉取代码 & 配置
 
 ```bash
 git clone https://github.com/MonoYan/open-medkit.git
@@ -12,7 +14,7 @@ cd open-medkit
 cp .env.example .env
 ```
 
-Edit `.env`:
+编辑 `.env`：
 
 ```env
 # 访问密码（可选；两个变量都留空则不启用）
@@ -22,61 +24,61 @@ AUTH_PASSWORD_HASH=
 # AUTH_PASSWORD=my-secret
 
 AI_API_KEY=sk-your-key-here
-AI_BASE_URL=https://api.openai.com   # or any OpenAI-compatible endpoint
+AI_BASE_URL=https://api.openai.com   # 或任意兼容 OpenAI 格式的接口
 AI_MODEL=gpt-4o-mini
 MEDKIT_PORT=3000
-# HTTPS_PROXY can still use http://proxy-host:port here; that is the proxy protocol, not the target site's protocol.
-# HTTP_PROXY: use for HTTP targets
+# HTTPS_PROXY 可以使用 http://proxy-host:port，这里的 http 是代理协议，而非目标网站协议
+# HTTP_PROXY：用于 HTTP 目标
 # HTTP_PROXY=http://192.168.31.1:7890
-# HTTPS_PROXY: use for HTTPS targets
+# HTTPS_PROXY：用于 HTTPS 目标
 # HTTPS_PROXY=http://192.168.31.1:7890
-# NO_PROXY: bypass proxy for local / internal hosts
+# NO_PROXY：跳过代理的本地 / 内网主机
 # NO_PROXY=localhost,127.0.0.1,.local
 ```
 
-> **Note**: AI config is optional at deploy time. Users can configure it later in the browser Settings panel.
-> `MEDKIT_PORT` only changes the host port exposed by Docker Compose. The container still listens on `3000`.
+> **说明**：AI 配置在部署时是可选的，用户可以之后在浏览器的设置面板中配置。
+> `MEDKIT_PORT` 仅改变 Docker Compose 暴露的宿主机端口，容器内部始终监听 `3000`。
 
-### 2. Start
+### 2. 启动
 
 ```bash
 docker compose up -d --build
 ```
 
-App is now running at `http://your-server-ip:3000` by default. If you changed `MEDKIT_PORT`, use that host port instead.
+默认访问 `http://your-server-ip:3000`。如果修改了 `MEDKIT_PORT`，请使用对应端口。
 
-### 3. Update
+### 3. 更新
 
 ```bash
 git pull
 docker compose up -d --build
 ```
 
-### 4. Data Management
+### 4. 数据管理
 
-Database is stored in a Docker volume (`medkit-data`).
+数据库存储在 Docker 卷 (`medkit-data`) 中。
 
-**Backup:**
+**备份：**
 
 ```bash
-# Copy database out of container
+# 从容器中拷贝数据库
 docker cp medkit:/data/medicine.db ./medicine-backup-$(date +%Y%m%d).db
 ```
 
-**Restore:**
+**恢复：**
 
 ```bash
 docker cp ./medicine-backup.db medkit:/data/medicine.db
 docker compose restart
 ```
 
-**Or use the built-in export/import** — open Settings in the web UI, click "Export Data" to download a JSON file. Import it on another instance.
+**也可以使用内置的导出/导入功能** — 在 Web UI 的设置面板中点击"导出数据"下载 JSON 文件，然后在另一个实例中导入。
 
 ---
 
-## Reverse Proxy (HTTPS)
+## 反向代理（HTTPS）
 
-Production deployments should sit behind a reverse proxy for HTTPS.
+生产环境部署建议使用反向代理来启用 HTTPS。
 
 ### Nginx
 
@@ -104,7 +106,7 @@ server {
 }
 ```
 
-### Caddy (simpler)
+### Caddy（更简单）
 
 ```
 medkit.example.com {
@@ -112,31 +114,31 @@ medkit.example.com {
 }
 ```
 
-Caddy handles HTTPS certificates automatically.
+Caddy 会自动管理 HTTPS 证书。
 
 ---
 
-## Synology NAS
+## 群晖 NAS
 
-1. Open **Container Manager** (Docker)
-2. In **Project**, create a new project from the cloned repo folder
-3. Set environment variables in the compose UI
-4. Map volume: `/data` → a local folder on your NAS for persistence
-5. Start the project
+1. 打开 **Container Manager**（Docker）
+2. 在 **项目** 中，使用克隆的仓库文件夹创建新项目
+3. 在 compose UI 中设置环境变量
+4. 映射卷：`/data` → NAS 上的本地文件夹，用于数据持久化
+5. 启动项目
 
 ---
 
-## Custom Port
+## 自定义端口
 
-For Docker Compose, set `MEDKIT_PORT` in `.env`:
+Docker Compose 方式，在 `.env` 中设置 `MEDKIT_PORT`：
 
 ```env
 MEDKIT_PORT=8080
 ```
 
-This changes the host port only; the container still listens on `3000`.
+这只改变宿主机端口，容器内部仍然监听 `3000`。
 
-Or set `PORT` env var if running without Docker:
+非 Docker 方式运行时，设置 `PORT` 环境变量：
 
 ```bash
 PORT=8080 npm run start
@@ -144,41 +146,41 @@ PORT=8080 npm run start
 
 ---
 
-## Build from Source (no Docker)
+## 源码构建（不使用 Docker）
 
-For environments where Docker is not available.
+适用于没有 Docker 的环境。
 
-### Prerequisites
+### 前置条件
 
 - Node.js >= 20
 - npm >= 9
 
-### Steps
+### 步骤
 
 ```bash
 git clone https://github.com/MonoYan/open-medkit.git
 cd open-medkit
 npm install
 
-# Build frontend and backend
+# 构建前端和后端
 npm run build
 
-# Set env vars
+# 设置环境变量
 export AI_API_KEY=sk-your-key
 export DB_PATH=/path/to/medicine.db
 export NODE_ENV=production
 # 可选：启用访问密码保护
 # export AUTH_PASSWORD_HASH='$argon2id$...'
 
-# Start
+# 启动
 npm run start
 ```
 
-The server runs on port 3000 by default and serves both the API and frontend static files.
+服务器默认在 3000 端口运行，同时提供 API 和前端静态文件。
 
-### Process Manager (systemd)
+### 进程管理（systemd）
 
-To keep the app running as a service:
+将应用作为系统服务持续运行：
 
 ```ini
 # /etc/systemd/system/medkit.service
@@ -204,7 +206,7 @@ WantedBy=multi-user.target
 sudo systemctl enable --now medkit
 ```
 
-### Process Manager (pm2)
+### 进程管理（pm2）
 
 ```bash
 npm install -g pm2
@@ -273,7 +275,7 @@ AUTH_PASSWORD=my-secret
 
 ---
 
-## Health Check
+## 健康检查
 
 容器内置了 `/api/health` 健康检查接口（无需认证）。你也可以把它用于外部监控：
 
@@ -285,13 +287,13 @@ curl -f http://localhost:3000/api/health
 
 ---
 
-## Telegram Notifications
+## 通知提醒
 
-Open MedKit supports Telegram bot notifications for expiring medicines.
+Open MedKit 支持通过 Telegram 机器人发送过期药品提醒。
 
-1. Create a bot via [@BotFather](https://t.me/BotFather), get the bot token
-2. Open Settings in the web UI → Notification Channels → Add Telegram
-3. Paste the bot token, then click the link to start a chat with your bot
-4. The app will auto-detect your chat ID
+1. 在 Telegram 中找 [@BotFather](https://t.me/BotFather) 创建一个 Bot，获取 Bot Token
+2. 在 Web UI 中打开 设置 → 通知提醒 → 添加 Telegram
+3. 粘贴 Bot Token，然后点击链接与你的 Bot 开始对话
+4. 应用会自动检测你的 Chat ID
 
-The bot sends daily reminders about medicines that are expired or expiring soon.
+机器人会每日发送关于已过期和即将过期药品的提醒。

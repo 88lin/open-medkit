@@ -1,3 +1,5 @@
+[English](./MCP.en.md) | 中文
+
 # MCP Server 使用指南
 
 OpenMedKit 内置了一个 [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) 服务器，通过 stdio 传输协议暴露药箱的增删改查操作。任何支持 MCP 的 AI 客户端（Claude Code、Cursor、Claude Desktop、OpenClaw 等）都可以直接调用这些 tool 来管理你的家庭药箱数据，无需打开网页。
