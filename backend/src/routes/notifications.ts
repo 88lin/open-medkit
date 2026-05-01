@@ -5,6 +5,8 @@ import { sendNotificationNow } from '../services/notifier';
 import * as telegram from '../services/telegram';
 import * as discord from '../services/discord';
 import * as feishu from '../services/feishu';
+import { verifyEmail } from '../services/email';
+import type { EmailConfig } from '../services/email';
 
 interface ChannelRow {
   channel_type: string;
@@ -36,6 +38,12 @@ function sanitizeChannel(row: ChannelRow) {
   }
   if (typeof config.secret === 'string') {
     config.secret = '***';
+  }
+  if (typeof config.pass === 'string') {
+    config.pass = '***';
+  }
+  if (typeof config.apiKey === 'string') {
+    config.apiKey = maskToken(config.apiKey);
   }
   return {
     channel_type: row.channel_type,
@@ -308,6 +316,67 @@ notificationsRouter.post('/channels/feishu/save', async (c) => {
     return c.json(
       { error: 'Failed to save Feishu webhook', detail: error instanceof Error ? error.message : 'Unknown error' },
       500,
+    );
+  }
+});
+
+// ---- POST /channels/email/verify-and-save ----
+notificationsRouter.post('/channels/email/verify-and-save', async (c) => {
+  try {
+    const body = (await c.req.json()) as EmailConfig;
+    if (!body.provider || !body.from || !body.to) {
+      return c.json({ error: 'provider, from, and to are required' }, 400);
+    }
+
+    if (body.provider === 'smtp' && (!body.host || !body.user)) {
+      return c.json({ error: 'SMTP requires host and user' }, 400);
+    }
+
+    if (body.provider === 'resend' && !body.apiKey) {
+      return c.json({ error: 'Resend requires apiKey' }, 400);
+    }
+
+    const db = getDb();
+
+    // If sensitive fields are masked placeholders, restore from DB
+    const existing = db
+      .prepare('SELECT config FROM notification_channels WHERE channel_type = ?')
+      .get('email') as { config: string } | undefined;
+
+    if (existing) {
+      const saved = JSON.parse(existing.config) as Record<string, unknown>;
+      if (body.provider === 'smtp' && body.pass === '***' && typeof saved.pass === 'string') {
+        body.pass = saved.pass;
+      }
+      if (body.provider === 'resend' && typeof body.apiKey === 'string') {
+        const masked = maskToken(typeof saved.apiKey === 'string' ? saved.apiKey : '');
+        if (body.apiKey === masked && typeof saved.apiKey === 'string') {
+          body.apiKey = saved.apiKey;
+        }
+      }
+    }
+
+    await verifyEmail(body);
+
+    const now = new Date().toISOString();
+    const configToSave: Record<string, unknown> = { ...body, verifiedAt: now, lastTestAt: now };
+    const configJson = JSON.stringify(configToSave);
+
+    if (existing) {
+      db.prepare(
+        'UPDATE notification_channels SET config = ?, enabled = 1 WHERE channel_type = ?',
+      ).run(configJson, 'email');
+    } else {
+      db.prepare(
+        'INSERT INTO notification_channels (channel_type, enabled, config) VALUES (?, 1, ?)',
+      ).run('email', configJson);
+    }
+
+    return c.json({ data: { ok: true, verifiedAt: now } });
+  } catch (error) {
+    return c.json(
+      { error: 'Email verification failed', detail: error instanceof Error ? error.message : 'Unknown error' },
+      400,
     );
   }
 });

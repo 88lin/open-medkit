@@ -34,6 +34,7 @@ import {
   testAiConnection,
   testNotificationChannel,
   updateNotificationChannel,
+  verifyAndSaveEmail,
   verifyDiscordWebhook,
   verifyFeishuWebhook,
   verifyTelegramBot,
@@ -41,6 +42,7 @@ import {
 import { useTimezone } from '../hooks/useTimezone';
 import type {
   DiscordChannelConfig,
+  EmailChannelConfig,
   FeishuChannelConfig,
   NotificationChannel,
   Settings,
@@ -78,7 +80,8 @@ const themeOptions = [
 const reminderDayOptions = [7, 15, 30, 60] as const;
 const notifyHourOptions = Array.from({ length: 24 }, (_, i) => i);
 type SettingsTab = 'ai' | 'general' | 'notifications' | 'about' | 'privacy' | 'disclaimer';
-type NotifyChannel = 'telegram' | 'discord' | 'feishu';
+type NotifyChannel = 'telegram' | 'discord' | 'feishu' | 'email';
+type EmailProvider = 'smtp' | 'resend';
 
 const COMMON_TIMEZONES = [
   'UTC',
@@ -244,6 +247,25 @@ export function SettingsModal({
   const [fsStatus, setFsStatus] = useState('');
   const [fsError, setFsError] = useState('');
 
+  // Email notification state
+  const [emChannel, setEmChannel] = useState<NotificationChannel | null>(null);
+  const [emProvider, setEmProvider] = useState<EmailProvider>('smtp');
+  const [emSmtpHost, setEmSmtpHost] = useState('');
+  const [emSmtpPort, setEmSmtpPort] = useState(587);
+  const [emSmtpSecure, setEmSmtpSecure] = useState(false);
+  const [emSmtpUser, setEmSmtpUser] = useState('');
+  const [emSmtpPass, setEmSmtpPass] = useState('');
+  const [emResendApiKey, setEmResendApiKey] = useState('');
+  const [emFrom, setEmFrom] = useState('');
+  const [emTo, setEmTo] = useState('');
+  const [emSaving, setEmSaving] = useState(false);
+  const [emTestingSend, setEmTestingSend] = useState(false);
+  const [emNotifyHour, setEmNotifyHour] = useState(9);
+  const [emEnabled, setEmEnabled] = useState(false);
+  const [emVerifiedAt, setEmVerifiedAt] = useState('');
+  const [emStatus, setEmStatus] = useState('');
+  const [emError, setEmError] = useState('');
+
   const loadChannels = useCallback(async () => {
     try {
       const channels = await getNotificationChannels();
@@ -283,6 +305,29 @@ export function SettingsModal({
         setFsNotifyHour(9);
         setFsEnabled(false);
       }
+
+      const em = channels.find((ch) => ch.channel_type === 'email') || null;
+      setEmChannel(em);
+      if (em) {
+        const cfg = em.config as EmailChannelConfig;
+        setEmProvider(cfg.provider || 'smtp');
+        if (cfg.provider === 'smtp') {
+          setEmSmtpHost(cfg.host || '');
+          setEmSmtpPort(cfg.port || 587);
+          setEmSmtpSecure(cfg.secure ?? false);
+          setEmSmtpUser(cfg.user || '');
+        }
+        setEmFrom(cfg.from || '');
+        setEmTo(cfg.to || '');
+        setEmNotifyHour(em.notify_hour);
+        setEmEnabled(em.enabled);
+        setEmVerifiedAt(cfg.verifiedAt || '');
+      } else {
+        setEmProvider('smtp');
+        setEmNotifyHour(9);
+        setEmEnabled(false);
+        setEmVerifiedAt('');
+      }
     } catch {
       // silently ignore on initial load
     }
@@ -313,6 +358,10 @@ export function SettingsModal({
       setFsVerifying(false);
       setFsSaving(false);
       setFsTestingSend(false);
+      setEmStatus('');
+      setEmError('');
+      setEmSaving(false);
+      setEmTestingSend(false);
       setTimezoneInput(timezone);
       setTimezoneStatus('');
       setTimezoneError('');
@@ -709,6 +758,95 @@ export function SettingsModal({
     }
   };
 
+  // -- Email handlers --
+
+  const handleEmVerifyAndSave = async () => {
+    setEmSaving(true);
+    setEmError('');
+    setEmStatus('');
+    try {
+      const config: Record<string, unknown> =
+        emProvider === 'smtp'
+          ? {
+              provider: 'smtp',
+              host: emSmtpHost,
+              port: emSmtpPort,
+              secure: emSmtpSecure,
+              user: emSmtpUser,
+              pass: emSmtpPass,
+              from: emFrom,
+              to: emTo,
+            }
+          : {
+              provider: 'resend',
+              apiKey: emResendApiKey,
+              from: emFrom,
+              to: emTo,
+            };
+      const result = await verifyAndSaveEmail(config);
+      setEmVerifiedAt(result.verifiedAt);
+      setEmStatus('验证通过，已保存并启用');
+      await loadChannels();
+    } catch (err) {
+      setEmError(err instanceof Error ? err.message : '验证失败');
+    } finally {
+      setEmSaving(false);
+    }
+  };
+
+  const handleEmUnlink = async () => {
+    setEmError('');
+    setEmStatus('');
+    try {
+      await deleteNotificationChannel('email');
+      setEmChannel(null);
+      setEmEnabled(false);
+      setEmVerifiedAt('');
+      setEmStatus('已解除绑定');
+    } catch (err) {
+      setEmError(err instanceof Error ? err.message : '解绑失败');
+    }
+  };
+
+  const handleEmToggle = async (enabled: boolean) => {
+    setEmError('');
+    try {
+      await updateNotificationChannel('email', { enabled });
+      setEmEnabled(enabled);
+    } catch (err) {
+      setEmError(err instanceof Error ? err.message : '更新失败');
+    }
+  };
+
+  const handleEmHourChange = async (hour: number) => {
+    setEmError('');
+    setEmNotifyHour(hour);
+    try {
+      await updateNotificationChannel('email', { notify_hour: hour });
+    } catch (err) {
+      setEmError(err instanceof Error ? err.message : '更新失败');
+    }
+  };
+
+  const handleEmTest = async () => {
+    setEmTestingSend(true);
+    setEmError('');
+    setEmStatus('');
+    try {
+      const result = await testNotificationChannel('email');
+      setEmStatus(result.message);
+    } catch (err) {
+      setEmError(err instanceof Error ? err.message : '发送测试失败');
+    } finally {
+      setEmTestingSend(false);
+    }
+  };
+
+  const handleEmPortChange = (port: number) => {
+    setEmSmtpPort(port);
+    setEmSmtpSecure(port === 465);
+  };
+
   const getOptionCardStateClass = (selected: boolean) =>
     selected
       ? 'border-accent/30 bg-accent/10 shadow-[0_10px_30px_rgba(200,75,47,0.08)]'
@@ -903,6 +1041,7 @@ export function SettingsModal({
                     { key: 'telegram' as NotifyChannel, label: 'Telegram', connected: !!(tgChannel && (tgChannel.config as TelegramChannelConfig).chatId) },
                     { key: 'discord' as NotifyChannel, label: 'Discord', connected: !!(dcChannel && (dcChannel.config as DiscordChannelConfig).webhookUrl) },
                     { key: 'feishu' as NotifyChannel, label: '飞书', connected: !!(fsChannel && (fsChannel.config as FeishuChannelConfig).webhookUrl) },
+                    { key: 'email' as NotifyChannel, label: 'Email', connected: !!(emChannel && emVerifiedAt) },
                   ]).map((ch) => {
                     const isActive = activeNotifyChannel === ch.key;
                     return (
@@ -1303,6 +1442,214 @@ export function SettingsModal({
                       )}
                       {fsError && (
                         <div className="text-[12px] text-status-danger">{fsError}</div>
+                      )}
+                    </div>
+                  </section>
+                )}
+
+                {/* Email panel */}
+                {activeNotifyChannel === 'email' && (
+                  <section className={sectionClass}>
+                    <div className="space-y-3">
+                      {emChannel && emVerifiedAt ? (
+                        <>
+                          <div className="flex items-center gap-2 rounded-lg border border-status-ok/20 bg-status-ok-bg px-3 py-2">
+                            <div className="h-2 w-2 rounded-full bg-status-ok" />
+                            <span className="text-[12px] text-ink">
+                              已配置 {(emChannel.config as EmailChannelConfig).provider === 'resend' ? 'Resend' : 'SMTP'} 邮件通知
+                            </span>
+                          </div>
+
+                          {emVerifiedAt && (
+                            <p className="text-[11px] text-ink3">
+                              验证时间：{new Date(emVerifiedAt).toLocaleString()}
+                            </p>
+                          )}
+
+                          <div className="flex items-center gap-3">
+                            <label className="flex cursor-pointer items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={emEnabled}
+                                onChange={(e) => void handleEmToggle(e.target.checked)}
+                                className="h-4 w-4 rounded border-border accent-accent"
+                              />
+                              <span className="text-[12px] text-ink">启用每日提醒</span>
+                            </label>
+                          </div>
+
+                          {emEnabled && (
+                            <div>
+                              <div className={fieldLabelClass}>每日发送时间</div>
+                              <SelectMenu
+                                value={emNotifyHour}
+                                options={notifyHourSelectOptions}
+                                onChange={(hour) => void handleEmHourChange(hour)}
+                                ariaLabel="Email 每日发送时间"
+                                className="max-w-[160px]"
+                                buttonClassName={inputClass}
+                              />
+                              <p className="mt-1.5 text-[11px] leading-4 text-ink2">
+                                每天按药箱时区 {timezone} 的此时间检查并发送提醒。
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void handleEmTest()}
+                              disabled={emTestingSend || !emEnabled}
+                              className={secondaryButtonClass}
+                            >
+                              {emTestingSend ? '发送中...' : '发送测试通知'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleEmUnlink()}
+                              className={`${secondaryButtonClass} text-status-danger`}
+                            >
+                              解除绑定
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-[12px] leading-[1.5] text-ink2">
+                            通过邮件接收过期提醒，支持 SMTP 和 Resend 两种方式。
+                          </p>
+
+                          {/* Provider toggle */}
+                          <div>
+                            <div className={fieldLabelClass}>发送方式</div>
+                            <div className="inline-flex rounded-[10px] border border-border/50 bg-surface4 p-[3px]">
+                              {(['smtp', 'resend'] as const).map((pv) => (
+                                <button
+                                  key={pv}
+                                  type="button"
+                                  onClick={() => setEmProvider(pv)}
+                                  className={`rounded-[8px] px-3 py-1.5 text-[11px] font-medium transition-all duration-200 ${
+                                    emProvider === pv
+                                      ? 'theme-panel border border-border/60 text-ink shadow-sm'
+                                      : 'border border-transparent text-ink3 hover:text-ink2'
+                                  }`}
+                                >
+                                  {pv === 'smtp' ? 'SMTP' : 'Resend'}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {emProvider === 'smtp' ? (
+                            <div className="space-y-2.5">
+                              <div className="grid gap-2.5 sm:grid-cols-2">
+                                <label className="block">
+                                  <div className={fieldLabelClass}>SMTP Host</div>
+                                  <input
+                                    value={emSmtpHost}
+                                    onChange={(e) => setEmSmtpHost(e.target.value)}
+                                    placeholder="smtp.gmail.com"
+                                    className={inputClass}
+                                  />
+                                </label>
+                                <label className="block">
+                                  <div className={fieldLabelClass}>端口</div>
+                                  <input
+                                    type="number"
+                                    value={emSmtpPort}
+                                    onChange={(e) => handleEmPortChange(Number(e.target.value))}
+                                    placeholder="587"
+                                    className={inputClass}
+                                  />
+                                </label>
+                              </div>
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={emSmtpSecure}
+                                  onChange={(e) => setEmSmtpSecure(e.target.checked)}
+                                  className="h-4 w-4 rounded border-border accent-accent"
+                                />
+                                <span className="text-[12px] text-ink">Use SSL/TLS</span>
+                                <span className="text-[11px] text-ink3">（端口 465 自动开启）</span>
+                              </label>
+                              <div className="grid gap-2.5 sm:grid-cols-2">
+                                <label className="block">
+                                  <div className={fieldLabelClass}>用户名</div>
+                                  <input
+                                    value={emSmtpUser}
+                                    onChange={(e) => setEmSmtpUser(e.target.value)}
+                                    placeholder="user@gmail.com"
+                                    className={inputClass}
+                                  />
+                                </label>
+                                <label className="block">
+                                  <div className={fieldLabelClass}>密码</div>
+                                  <input
+                                    type="password"
+                                    value={emSmtpPass}
+                                    onChange={(e) => setEmSmtpPass(e.target.value)}
+                                    placeholder="应用专用密码"
+                                    className={inputClass}
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-2.5">
+                              <label className="block">
+                                <div className={fieldLabelClass}>Resend API Key</div>
+                                <input
+                                  type="password"
+                                  value={emResendApiKey}
+                                  onChange={(e) => setEmResendApiKey(e.target.value)}
+                                  placeholder="re_..."
+                                  className={inputClass}
+                                />
+                              </label>
+                              <p className="text-[11px] leading-[1.5] text-ink3">
+                                发件人必须使用 Resend 已验证域名下的邮箱地址。
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="grid gap-2.5 sm:grid-cols-2">
+                            <label className="block">
+                              <div className={fieldLabelClass}>发件人</div>
+                              <input
+                                value={emFrom}
+                                onChange={(e) => setEmFrom(e.target.value)}
+                                placeholder="OpenMedKit <no-reply@example.com>"
+                                className={inputClass}
+                              />
+                            </label>
+                            <label className="block">
+                              <div className={fieldLabelClass}>收件人</div>
+                              <input
+                                value={emTo}
+                                onChange={(e) => setEmTo(e.target.value)}
+                                placeholder="you@example.com"
+                                className={inputClass}
+                              />
+                            </label>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => void handleEmVerifyAndSave()}
+                            disabled={emSaving || !emFrom.trim() || !emTo.trim()}
+                            className={primaryButtonClass}
+                          >
+                            {emSaving ? '验证中...' : '测试并保存'}
+                          </button>
+                        </>
+                      )}
+
+                      {emStatus && (
+                        <div className="text-[12px] text-status-ok">{emStatus}</div>
+                      )}
+                      {emError && (
+                        <div className="text-[12px] text-status-danger">{emError}</div>
                       )}
                     </div>
                   </section>

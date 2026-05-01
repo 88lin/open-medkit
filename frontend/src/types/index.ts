@@ -78,10 +78,34 @@ export interface FeishuChannelConfig {
   secret?: string;
 }
 
+export interface EmailSmtpChannelConfig {
+  provider: 'smtp';
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+  from: string;
+  to: string;
+  verifiedAt?: string;
+  lastTestAt?: string;
+}
+
+export interface EmailResendChannelConfig {
+  provider: 'resend';
+  apiKey: string;
+  from: string;
+  to: string;
+  verifiedAt?: string;
+  lastTestAt?: string;
+}
+
+export type EmailChannelConfig = EmailSmtpChannelConfig | EmailResendChannelConfig;
+
 export interface NotificationChannel {
   channel_type: string;
   enabled: boolean;
-  config: TelegramChannelConfig | DiscordChannelConfig | FeishuChannelConfig | Record<string, unknown>;
+  config: TelegramChannelConfig | DiscordChannelConfig | FeishuChannelConfig | EmailChannelConfig | Record<string, unknown>;
   notify_hour: number;
   last_notified_date?: string;
 }

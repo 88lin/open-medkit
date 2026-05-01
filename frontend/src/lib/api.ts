@@ -787,6 +787,20 @@ export async function verifyFeishuWebhook(webhookUrl: string, secret?: string) {
   return payload.data;
 }
 
+// Email
+
+export async function verifyAndSaveEmail(config: Record<string, unknown>) {
+  const payload = await request<{ data: { ok: boolean; verifiedAt: string } }>(
+    '/notifications/channels/email/verify-and-save',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    },
+  );
+  return payload.data;
+}
+
 export async function saveFeishuWebhook(webhookUrl: string, secret?: string) {
   const payload = await request<{ data: { saved: boolean } }>(
     '/notifications/channels/feishu/save',
