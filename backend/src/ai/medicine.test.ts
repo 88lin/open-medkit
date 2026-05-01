@@ -111,6 +111,7 @@ describe('normalizeMedicineDraftPayload', () => {
   it('extracts string fields from parsed object', () => {
     const result = normalizeMedicineDraftPayload({
       name: '布洛芬',
+      brand: '开瑞坦',
       name_en: 'Ibuprofen',
       spec: '300mg',
       quantity: '20粒',
@@ -123,6 +124,7 @@ describe('normalizeMedicineDraftPayload', () => {
 
     expect(result).toEqual({
       name: '布洛芬',
+      brand: '开瑞坦',
       name_en: 'Ibuprofen',
       spec: '300mg',
       quantity: '20粒',
@@ -142,6 +144,7 @@ describe('normalizeMedicineDraftPayload', () => {
     });
 
     expect(result.name).toBe('');
+    expect(result.brand).toBe('');
     expect(result.spec).toBe('');
     expect(result).not.toHaveProperty('unknown_field');
   });
@@ -149,6 +152,7 @@ describe('normalizeMedicineDraftPayload', () => {
   it('handles empty object', () => {
     const result = normalizeMedicineDraftPayload({});
     expect(result.name).toBe('');
+    expect(result.brand).toBe('');
     expect(result.name_en).toBe('');
   });
 });
@@ -188,6 +192,7 @@ describe('rowToMedicine', () => {
     const row: MedicineRecord = {
       id: 1,
       name: 'Test',
+      brand: null,
       name_en: null,
       spec: null,
       quantity: null,
@@ -202,6 +207,7 @@ describe('rowToMedicine', () => {
 
     const result = rowToMedicine(row);
     expect(result.name_en).toBe('');
+    expect(result.brand).toBe('');
     expect(result.spec).toBe('');
     expect(result.quantity).toBe('');
     expect(result.expires_at).toBe('');
@@ -217,6 +223,7 @@ describe('rowToMedicine', () => {
     const row: MedicineRecord = {
       id: 2,
       name: '布洛芬',
+      brand: '美林',
       name_en: 'Ibuprofen',
       spec: '300mg',
       quantity: '20粒',
@@ -231,6 +238,7 @@ describe('rowToMedicine', () => {
 
     const result = rowToMedicine(row);
     expect(result.name_en).toBe('Ibuprofen');
+    expect(result.brand).toBe('美林');
     expect(result.spec).toBe('300mg');
   });
 });

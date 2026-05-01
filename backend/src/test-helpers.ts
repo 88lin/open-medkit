@@ -38,6 +38,7 @@ export function insertTestMedicine(
   db: SqliteDatabase,
   data: {
     name: string;
+    brand?: string;
     name_en?: string;
     spec?: string;
     quantity?: string;
@@ -50,11 +51,12 @@ export function insertTestMedicine(
 ) {
   return db
     .prepare(
-      `INSERT INTO medicines (name, name_en, spec, quantity, expires_at, category, usage_desc, location, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO medicines (name, brand, name_en, spec, quantity, expires_at, category, usage_desc, location, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       data.name,
+      data.brand || null,
       data.name_en || null,
       data.spec || null,
       data.quantity || null,

@@ -6,6 +6,7 @@ export function buildParsePrompt(categories: string[]) {
 请严格按照以下 JSON 格式返回，不要有任何其他文字：
 {
   "name": "药品通用名（必填）",
+  "brand": "品牌名、商品名或厂家品牌（选填，不确定留空字符串）",
   "name_en": "英文名或通用名（选填，不确定留空字符串）",
   "spec": "规格如 300mg/粒（选填）",
   "quantity": "剩余数量如 20粒（选填）",
@@ -17,7 +18,8 @@ export function buildParsePrompt(categories: string[]) {
 }
 
 规则：
-- name 使用药品通用名或常见商品名，不要包含规格或厂家
+- name 使用药品通用名或最常见药品名，不要包含规格或厂家；能拆分品牌时不要把品牌放入 name
+- 如果药名中同时出现品牌/商品名和通用名，请把品牌放入 brand，把通用名放入 name。例如“开瑞坦氯雷他定”应返回 brand="开瑞坦", name="氯雷他定"
 - quantity 保留用户原始说法（如"一板""大约20片"），不要转换单位
 - expires_at 只有年月时默认为当月最后一天；完全不确定时留空字符串
 
@@ -25,6 +27,7 @@ export function buildParsePrompt(categories: string[]) {
 示例输出：
 {
   "name": "布洛芬缓释胶囊",
+  "brand": "",
   "name_en": "Ibuprofen SR Capsules",
   "spec": "300mg/粒",
   "quantity": "20粒",
@@ -39,6 +42,7 @@ export function buildParsePrompt(categories: string[]) {
 示例输出：
 {
   "name": "创可贴",
+  "brand": "",
   "name_en": "Band-Aid",
   "spec": "透气型",
   "quantity": "约20片",
@@ -57,6 +61,7 @@ export function buildBatchParsePrompt(categories: string[], itemCount: number) {
   "medicines": [
     {
       "name": "药品通用名（必填）",
+      "brand": "品牌名、商品名或厂家品牌（选填，不确定留空字符串）",
       "name_en": "英文名或通用名（选填，不确定留空字符串）",
       "spec": "规格如 300mg/粒（选填）",
       "quantity": "剩余数量如 20粒（选填）",
@@ -72,11 +77,12 @@ export function buildBatchParsePrompt(categories: string[], itemCount: number) {
 }
 
 export function buildDraftCompletionPrompt(categories: string[]) {
-  return `你是一个家庭药箱录入助手。用户已经填写了一份药品草稿，请你在已有信息基础上尽量补全和规范化以下字段：name、name_en、spec、category、usage_desc。
+  return `你是一个家庭药箱录入助手。用户已经填写了一份药品草稿，请你在已有信息基础上尽量补全和规范化以下字段：brand、name、name_en、spec、category、usage_desc。
 
 请严格返回一个 JSON 对象，且只能包含以下字段：
 {
   "name": "药品名称，尽量使用常见通用名或完整名称；不确定留空字符串",
+  "brand": "品牌名、商品名或厂家品牌；不确定留空字符串",
   "name_en": "英文名或通用英文名；不确定留空字符串",
   "spec": "规格，如 300mg/粒；不确定留空字符串",
   "category": "分类，优先从以下已有分类中选择：${categories.join('、')}；如果都不匹配，再给出合理新分类；不确定留空字符串",
@@ -86,8 +92,9 @@ export function buildDraftCompletionPrompt(categories: string[]) {
 规则：
 1. 仅根据用户已提供的信息和常见药品知识进行谨慎补全
 2. 不确定时必须返回空字符串，不要猜测批号、数量、有效期、存放位置等未要求字段
-3. 如果用户已有填写内容比较明确，可以在保持原意的前提下补全或规范化
-4. 不要返回 Markdown，不要返回解释说明，不要返回额外字段`;
+3. 如果原始描述或名称中同时出现品牌/商品名和通用名，请把品牌放入 brand，把通用名放入 name
+4. 如果用户已有填写内容比较明确，可以在保持原意的前提下补全或规范化
+5. 不要返回 Markdown，不要返回解释说明，不要返回额外字段`;
 }
 
 export function buildImageParseMessages(categories: string[], imageDataUrl: string): ChatMessage[] {
@@ -101,7 +108,8 @@ export function buildImageParseMessages(categories: string[], imageDataUrl: stri
           type: 'text',
           text: `请从这张药品包装照片中提取药品信息。
 注意：
-- 优先读取包装盒正面的药品名称和规格
+- 优先读取包装盒正面的品牌/商品名、药品通用名和规格
+- 如果包装上有醒目的品牌（如开瑞坦、修正、泰诺等），请写入 brand 字段；name 仍尽量使用药品通用名
 - 有效期通常印在包装侧面或底部，格式可能是"有效期至YYYY.MM"或"EXP YYYY/MM"
 - 如果图片模糊或信息不完整，只提取能确认的字段，其他留空字符串
 - 不要猜测图片中看不到的信息`,
@@ -138,7 +146,7 @@ ${styleInstruction}
 8. 只能基于提供的数据回答，不要编造药品或功效
 9. 不要输出就医建议、免责声明、用药禁忌等超出药箱数据范围的医学建议板块
 10. 不要告诉用户"哪些药不适合"某症状，只说药箱里有什么可能相关的
-11. 在回答中尽量提及相关药品的完整名称，以便系统自动识别
+11. 在回答中尽量提及相关药品的完整名称；如果药品有 brand，优先使用“brand · name”的形式，以便系统自动识别
 12. 最后一行必须单独输出机器标记，格式固定为：[[MEDKIT_IDS:1,3,5]]
 13. 如果没有匹配药品，最后一行输出：[[MEDKIT_IDS:]]
 14. 不要在正文解释这个机器标记`;

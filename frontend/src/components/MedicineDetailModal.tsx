@@ -2,7 +2,13 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 
 import { useTimezone } from '../hooks/useTimezone';
-import { daysUntilExpiry, formatDate, getMedicineStatus, getStatusText } from '../lib/utils';
+import {
+  daysUntilExpiry,
+  formatDate,
+  formatMedicineDisplayName,
+  getMedicineStatus,
+  getStatusText,
+} from '../lib/utils';
 import type { Medicine } from '../types';
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -125,6 +131,7 @@ export function MedicineDetailModal({
   const status = getMedicineStatus(medicine.expires_at, timezone, expiringDays);
   const days = medicine.expires_at ? daysUntilExpiry(medicine.expires_at, timezone) : undefined;
   const styles = getStatusClasses(status);
+  const displayName = formatMedicineDisplayName(medicine);
 
   const handleDeleteConfirm = async () => {
     setDeleting(true);
@@ -162,7 +169,7 @@ export function MedicineDetailModal({
                 id="medicine-detail-title"
                 className="text-[25px] font-semibold leading-tight text-ink"
               >
-                {medicine.name}
+                {displayName}
               </h2>
               {medicine.category && (
                 <span className="rounded-full bg-surface2 px-3 py-1 text-[11px] font-medium text-ink2">
@@ -203,6 +210,7 @@ export function MedicineDetailModal({
           </div>
 
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <MetaCard label="品牌" value={medicine.brand || '未填写'} />
             <MetaCard label="规格" value={medicine.spec || '未填写'} />
             <MetaCard label="有效期" value={formatDate(medicine.expires_at)} />
             <MetaCard label="剩余数量" value={medicine.quantity || '未填写'} />
@@ -239,7 +247,7 @@ export function MedicineDetailModal({
 
       <ConfirmDialog
         open={confirmOpen}
-        title={`确认删除「${medicine.name}」吗？`}
+        title={`确认删除「${displayName}」吗？`}
         description="删除后这条药品记录会从当前药箱中移除，相关到期提醒和查询结果也不会再显示。"
         confirmLabel="确认删除"
         cancelLabel="先保留"

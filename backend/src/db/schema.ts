@@ -2,6 +2,7 @@ export const schema = `
 CREATE TABLE IF NOT EXISTS medicines (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   name        TEXT NOT NULL,
+  brand       TEXT,
   name_en     TEXT,
   spec        TEXT,
   quantity    TEXT,

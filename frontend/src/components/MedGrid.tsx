@@ -3,7 +3,13 @@ import { LayoutGrid, List, Pencil, RefreshCw, RotateCcw, Search, Trash2 } from '
 
 import type { Medicine, MedicineFilterStatus, Stats } from '../types';
 import { useTimezone } from '../hooks/useTimezone';
-import { formatDate, getMedicineStatus, getStatusText, daysUntilExpiry } from '../lib/utils';
+import {
+  formatDate,
+  formatMedicineDisplayName,
+  getMedicineStatus,
+  getStatusText,
+  daysUntilExpiry,
+} from '../lib/utils';
 import { MedCard } from './MedCard';
 
 type SortMode = 'expires' | 'created';
@@ -97,7 +103,7 @@ export function MedGrid({
                 <input
                   value={searchQuery}
                   onChange={(event) => onSearchQueryChange(event.target.value)}
-                  placeholder="搜索名称、用途、位置..."
+                  placeholder="搜索名称、品牌、用途、位置..."
                   className="w-full bg-transparent text-[12px] text-ink outline-none placeholder:text-ink3"
                 />
               </label>
@@ -326,7 +332,7 @@ export function MedGrid({
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-ink">
-                      {medicine.name}
+                      {formatMedicineDisplayName(medicine)}
                     </span>
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium leading-normal ${badgeClass}`}>
                       {getStatusText(status, days)}
@@ -408,7 +414,7 @@ export function MedGrid({
                     className="cursor-pointer border-b border-border/30 transition-colors hover:bg-surface3"
                   >
                     <td className="max-w-[180px] truncate py-3 pr-3 font-medium text-ink">
-                      {medicine.name}
+                      {formatMedicineDisplayName(medicine)}
                       {medicine.spec && (
                         <span className="ml-1.5 font-mono text-[11px] font-normal text-ink3">{medicine.spec}</span>
                       )}

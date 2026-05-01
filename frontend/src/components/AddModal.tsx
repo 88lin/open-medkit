@@ -20,7 +20,7 @@ import {
   parseMedicineStream,
 } from '../lib/api';
 import type { Medicine, Settings } from '../types';
-import { compressImage } from '../lib/utils';
+import { compressImage, formatMedicineDisplayName } from '../lib/utils';
 import { DismissibleNotice } from './DismissibleNotice';
 import { SelectMenu } from './SelectMenu';
 
@@ -56,7 +56,7 @@ interface BatchDraftItem {
 }
 
 type AnimPhase = 'idle' | 'streaming' | 'streamDone' | 'collapsing' | 'filling' | 'ready';
-type AiCompletionField = 'name' | 'name_en' | 'spec' | 'category' | 'usage_desc';
+type AiCompletionField = 'brand' | 'name' | 'name_en' | 'spec' | 'category' | 'usage_desc';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -64,6 +64,7 @@ type AiCompletionField = 'name' | 'name_en' | 'spec' | 'category' | 'usage_desc'
 
 const emptyDraft: MedicineDraft = {
   name: '',
+  brand: '',
   name_en: '',
   spec: '',
   quantity: '',
@@ -85,6 +86,7 @@ const CARD_FIELD_ORDER: Array<{ key: keyof MedicineDraft; label: string; wide?: 
 
 const ALL_FILL_ORDER: Array<keyof MedicineDraft> = [
   'name',
+  'brand',
   'name_en',
   'expires_at',
   ...CARD_FIELD_ORDER.map((f) => f.key),
@@ -92,6 +94,7 @@ const ALL_FILL_ORDER: Array<keyof MedicineDraft> = [
 
 const AI_COMPLETION_FIELDS: AiCompletionField[] = [
   'name',
+  'brand',
   'name_en',
   'spec',
   'category',
@@ -105,6 +108,7 @@ const TYPEWRITER_CHARS_PER_TICK = 2;
 
 const fieldLabels: Array<keyof MedicineDraft> = [
   'name',
+  'brand',
   'name_en',
   'spec',
   'quantity',
@@ -124,6 +128,7 @@ function normalizeDraft(data?: Partial<Medicine>): MedicineDraft {
     ...emptyDraft,
     ...data,
     name: data?.name || '',
+    brand: data?.brand || '',
     name_en: data?.name_en || '',
     spec: data?.spec || '',
     quantity: data?.quantity || '',
@@ -304,8 +309,16 @@ function MedicinePreviewCard({
   if (!visible) return null;
 
   const nameShown = filledFields.has('name');
+  const brandShown = filledFields.has('brand');
   const enShown = filledFields.has('name_en');
   const expiryShown = filledFields.has('expires_at');
+  const displayName =
+    nameShown && draft.name
+      ? formatMedicineDisplayName({
+          name: draft.name,
+          brand: brandShown ? draft.brand : '',
+        })
+      : '';
 
   return (
     <div className="flex flex-col gap-4">
@@ -319,7 +332,7 @@ function MedicinePreviewCard({
             <div>
               <div className="min-w-[80px] font-body text-[17px] font-semibold text-white">
                 {nameShown ? (
-                  draft.name || '—'
+                  displayName || '—'
                 ) : (
                   <HeaderSkeleton className="h-[18px] w-24" />
                 )}
@@ -485,6 +498,15 @@ function InlineEditForm({
               />
             </div>
             <div className="flex flex-col gap-1">
+              <label className={labelCls}>品牌名</label>
+              <input
+                className={inputCls}
+                value={draft.brand}
+                onChange={(e) => onChange('brand', e.target.value)}
+                placeholder="选填，如：开瑞坦"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
               <label className={labelCls}>英文名</label>
               <input
                 className={inputCls}
@@ -645,6 +667,15 @@ function DraftFields({
         />
       </Field>
 
+      <Field label="品牌名">
+        <input
+          value={draft.brand}
+          onChange={(e) => onChange('brand', e.target.value)}
+          placeholder="选填，如：开瑞坦"
+          className={baseInputClasses(Boolean(flashFields?.has('brand')))}
+        />
+      </Field>
+
       <Field label="英文名">
         <input
           value={draft.name_en}
@@ -751,6 +782,15 @@ function CompactEditForm({
               onChange={(e) => onChange('name', e.target.value)}
               placeholder="例如：布洛芬缓释胶囊"
               className={baseInputClasses(Boolean(flashFields?.has('name')))}
+            />
+          </Field>
+
+          <Field label="品牌名">
+            <input
+              value={draft.brand}
+              onChange={(e) => onChange('brand', e.target.value)}
+              placeholder="选填，如：开瑞坦"
+              className={baseInputClasses(Boolean(flashFields?.has('brand')))}
             />
           </Field>
 
@@ -1368,7 +1408,7 @@ export function AddModal({
         await onCreate(draft);
         onCreateSuccess?.({
           count: 1,
-          names: draft.name.trim() ? [draft.name.trim()] : [],
+          names: draft.name.trim() ? [formatMedicineDisplayName(draft)] : [],
         });
       }
       onClose();
@@ -1403,7 +1443,7 @@ export function AddModal({
     if (failedIds.size === 0) {
       onCreateSuccess?.({
         count: ok,
-        names: valid.map((item) => item.form.name.trim()).filter(Boolean),
+        names: valid.map((item) => formatMedicineDisplayName(item.form)).filter(Boolean),
       });
       onClose();
       return;

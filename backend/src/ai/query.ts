@@ -8,6 +8,12 @@ import type { QueryResponseStyle } from './types';
 // ID / name matching
 // ---------------------------------------------------------------------------
 
+function formatMedicineDisplayName(medicine: Medicine) {
+  return medicine.brand && medicine.brand !== medicine.name
+    ? `${medicine.brand} · ${medicine.name}`
+    : medicine.name;
+}
+
 export function normalizeIdList(value: unknown) {
   if (!Array.isArray(value)) {
     return [] as number[];
@@ -37,9 +43,14 @@ function matchMedicineByName(medicines: Medicine[], name: string) {
   }
 
   return medicines.find((medicine) => {
-    const medicineNames = [medicine.name, medicine.name_en].filter(Boolean).map((item) =>
-      item.toLowerCase(),
-    );
+    const medicineNames = [
+      medicine.name,
+      medicine.brand,
+      medicine.name_en,
+      formatMedicineDisplayName(medicine),
+    ]
+      .filter(Boolean)
+      .map((item) => item.toLowerCase());
 
     return medicineNames.some(
       (candidate) =>
@@ -98,6 +109,10 @@ export function collectMatchedMedicines(payload: unknown, medicines: Medicine[])
 
     if (typeof value.name_en === 'string') {
       addByName(value.name_en);
+    }
+
+    if (typeof value.brand === 'string') {
+      addByName(value.brand);
     }
 
     if (Array.isArray(value.medicines)) {
@@ -174,7 +189,12 @@ export function collectMentionedMedicinesFromText(answer: string, medicines: Med
   }
 
   return medicines.filter((medicine) => {
-    const candidates = [medicine.name, medicine.name_en]
+    const candidates = [
+      medicine.name,
+      medicine.brand,
+      medicine.name_en,
+      formatMedicineDisplayName(medicine),
+    ]
       .filter(Boolean)
       .map((value) => value.trim().toLowerCase())
       .filter((value) => value.length >= 2);
@@ -221,7 +241,7 @@ function formatMedicineBullet(
     tags.push(medicine.category);
   }
 
-  return `- **${medicine.name}**${tags.length > 0 ? `：${tags.join(' · ')}` : ''}`;
+  return `- **${formatMedicineDisplayName(medicine)}**${tags.length > 0 ? `：${tags.join(' · ')}` : ''}`;
 }
 
 function buildQueryNotes(
@@ -243,11 +263,11 @@ function buildQueryNotes(
   }
 
   if (expired.length > 0) {
-    lines.push(`- **已过期**：${expired.map((medicine) => medicine.name).join('、')}，请勿继续使用`);
+    lines.push(`- **已过期**：${expired.map(formatMedicineDisplayName).join('、')}，请勿继续使用`);
   }
 
   if (expiring.length > 0) {
-    lines.push(`- **${expiringDays} 天内到期**：${expiring.map((medicine) => medicine.name).join('、')}`);
+    lines.push(`- **${expiringDays} 天内到期**：${expiring.map(formatMedicineDisplayName).join('、')}`);
   }
 
   return lines;
@@ -268,7 +288,7 @@ export function buildInventoryAnswer(
   );
   const previewNames = medicines
     .slice(0, 5)
-    .map((medicine) => `**${medicine.name}**`)
+    .map((medicine) => `**${formatMedicineDisplayName(medicine)}**`)
     .join('、');
   const lines = [
     '### 药箱概况',
@@ -394,7 +414,8 @@ export function resolveQueryResult(
     ids?: number[];
     id?: number | string;
     name?: string;
-    medicines?: Array<{ id?: number | string; name?: string }>;
+    brand?: string;
+    medicines?: Array<{ id?: number | string; name?: string; brand?: string }>;
   } | null>(raw);
 
   // Primary: match medicine names mentioned in the answer text
@@ -415,6 +436,7 @@ export function resolveQueryResult(
             ids: parsed.ids,
             id: parsed.id,
             name: parsed.name,
+            brand: parsed.brand,
             medicines: parsed.medicines,
           },
           medicines,

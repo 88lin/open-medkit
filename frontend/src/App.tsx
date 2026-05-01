@@ -156,6 +156,7 @@ export default function App() {
 
     const haystack = [
       medicine.name,
+      medicine.brand,
       medicine.name_en,
       medicine.spec,
       medicine.quantity,

@@ -18,6 +18,7 @@ import {
 
 function makeMedicine(overrides: Partial<Medicine> & { id: number; name: string }): Medicine {
   return {
+    brand: '',
     name_en: '',
     spec: '',
     quantity: '',
@@ -150,11 +151,20 @@ describe('collectMatchedMedicines', () => {
   it('returns empty for no matches', () => {
     expect(collectMatchedMedicines({ medicine_ids: [99] }, medicines)).toEqual([]);
   });
+
+  it('matches by brand', () => {
+    const result = collectMatchedMedicines(
+      { brand: '开瑞坦' },
+      [makeMedicine({ id: 1, name: '氯雷他定', brand: '开瑞坦' })],
+    );
+    expect(result.map((medicine) => medicine.id)).toEqual([1]);
+  });
 });
 
 describe('collectMentionedMedicinesFromText', () => {
   const medicines = [
     makeMedicine({ id: 1, name: '布洛芬缓释胶囊', name_en: 'Ibuprofen' }),
+    makeMedicine({ id: 3, name: '氯雷他定', brand: '开瑞坦' }),
     makeMedicine({ id: 2, name: '创可贴' }),
   ];
 
@@ -166,6 +176,11 @@ describe('collectMentionedMedicinesFromText', () => {
   it('finds medicines mentioned by English name', () => {
     const result = collectMentionedMedicinesFromText('Try ibuprofen', medicines);
     expect(result.map((m) => m.id)).toEqual([1]);
+  });
+
+  it('finds medicines mentioned by brand display name', () => {
+    const result = collectMentionedMedicinesFromText('可以看开瑞坦 · 氯雷他定', medicines);
+    expect(result.map((m) => m.id)).toContain(3);
   });
 
   it('returns empty for no matches', () => {

@@ -18,6 +18,7 @@ import {
 interface MedicineRecord {
   id: number;
   name: string;
+  brand: string | null;
   name_en: string | null;
   spec: string | null;
   quantity: string | null;
@@ -33,6 +34,7 @@ interface MedicineRecord {
 function rowToMedicine(row: MedicineRecord) {
   return {
     ...row,
+    brand: row.brand || '',
     name_en: row.name_en || '',
     spec: row.spec || '',
     quantity: row.quantity || '',
@@ -303,8 +305,8 @@ server.tool(
       }
 
       if (search) {
-        conditions.push('(name LIKE ? OR name_en LIKE ?)');
-        params.push(`%${search}%`, `%${search}%`);
+        conditions.push('(name LIKE ? OR brand LIKE ? OR name_en LIKE ?)');
+        params.push(`%${search}%`, `%${search}%`, `%${search}%`);
       }
 
       const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -344,9 +346,10 @@ server.tool(
   `Add a new medicine to the medkit. Only "name" is required; all other fields are optional.
 IMPORTANT: Always provide "category" when possible. Available categories: ${DEFAULT_CATEGORIES.join('、')}.
 If category is omitted, the system will attempt to auto-classify based on the medicine name and usage description.
-Also try to fill in name_en, spec, usage_desc, and other fields for better data quality.`,
+Also try to fill in brand, name_en, spec, usage_desc, and other fields for better data quality.`,
   {
     name: z.string().trim().min(1, 'Medicine name is required').describe('Medicine name (required)'),
+    brand: z.string().optional().describe('Brand or product name'),
     name_en: z.string().optional().describe('English name'),
     spec: z.string().optional().describe('Specification, e.g. 300mg/粒'),
     quantity: z.string().optional().describe('Remaining quantity, e.g. 20粒'),
@@ -370,11 +373,12 @@ Also try to fill in name_en, spec, usage_desc, and other fields for better data 
 
       const result = db
         .prepare(
-          `INSERT INTO medicines (name, name_en, spec, quantity, expires_at, category, usage_desc, location, notes)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO medicines (name, brand, name_en, spec, quantity, expires_at, category, usage_desc, location, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           params.name.trim(),
+          params.brand?.trim() || null,
           params.name_en?.trim() || null,
           params.spec?.trim() || null,
           params.quantity?.trim() || null,
@@ -402,6 +406,7 @@ server.tool(
   {
     id: z.number().describe('Medicine ID (required)'),
     name: z.string().optional().describe('Medicine name'),
+    brand: z.string().optional().describe('Brand or product name'),
     name_en: z.string().optional().describe('English name'),
     spec: z.string().optional().describe('Specification'),
     quantity: z.string().optional().describe('Remaining quantity'),
@@ -486,7 +491,7 @@ server.tool(
 
 server.tool(
   'search_medicines',
-  'Search medicines by keyword across name, English name, usage description, and notes fields.',
+  'Search medicines by keyword across name, brand, English name, usage description, and notes fields.',
   { query: z.string().describe('Search keyword') },
   async ({ query }) => {
     try {
@@ -495,10 +500,10 @@ server.tool(
       const rows = db
         .prepare(
           `SELECT * FROM medicines
-           WHERE name LIKE ? OR name_en LIKE ? OR usage_desc LIKE ? OR notes LIKE ?
+           WHERE name LIKE ? OR brand LIKE ? OR name_en LIKE ? OR usage_desc LIKE ? OR notes LIKE ?
            ORDER BY expires_at IS NULL ASC, expires_at ASC, id ASC`,
         )
-        .all(pattern, pattern, pattern, pattern) as MedicineRecord[];
+        .all(pattern, pattern, pattern, pattern, pattern) as MedicineRecord[];
 
       return textResult({ count: rows.length, medicines: rows.map(rowToMedicine) });
     } catch (err) {

@@ -21,11 +21,12 @@ function createApp() {
 function insertMedicine(data: Record<string, unknown>) {
   testDb
     .prepare(
-      `INSERT INTO medicines (name, name_en, spec, quantity, expires_at, category, usage_desc, location, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO medicines (name, brand, name_en, spec, quantity, expires_at, category, usage_desc, location, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       data.name ?? 'Test',
+      data.brand ?? null,
       data.name_en ?? null,
       data.spec ?? null,
       data.quantity ?? null,
@@ -193,6 +194,18 @@ describe('POST /api/medicines', () => {
     const body = await res.json();
     expect(body.data.name).toBe('布洛芬');
   });
+
+  it('creates a medicine with brand', async () => {
+    const app = createApp();
+    const res = await app.request('/api/medicines', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: '氯雷他定', brand: '开瑞坦' }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.data.brand).toBe('开瑞坦');
+  });
 });
 
 describe('GET /api/medicines/:id', () => {
@@ -298,7 +311,7 @@ describe('POST /api/medicines/import', () => {
       body: JSON.stringify({
         medicines: [
           { name: '布洛芬', spec: '300mg' },
-          { name: '创可贴' },
+          { name: '氯雷他定', brand: '开瑞坦' },
         ],
       }),
     });
@@ -306,6 +319,9 @@ describe('POST /api/medicines/import', () => {
     const body = await res.json();
     expect(body.data.imported).toBe(2);
     expect(body.data.skipped).toBe(0);
+
+    const created = testDb.prepare('SELECT * FROM medicines WHERE brand = ?').get('开瑞坦');
+    expect(created).toBeDefined();
   });
 
   it('skips rows with missing name', async () => {

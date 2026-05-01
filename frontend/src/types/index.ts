@@ -1,6 +1,7 @@
 export interface Medicine {
   id: number;
   name: string;
+  brand?: string;
   name_en?: string;
   spec?: string;
   quantity?: string;

@@ -8,6 +8,15 @@ export type SqliteDatabase = Database.Database;
 
 let db: SqliteDatabase | null = null;
 
+function ensureMedicineColumns(database: SqliteDatabase) {
+  const columns = database.pragma('table_info(medicines)') as Array<{ name: string }>;
+  const columnNames = new Set(columns.map((column) => column.name));
+
+  if (!columnNames.has('brand')) {
+    database.prepare('ALTER TABLE medicines ADD COLUMN brand TEXT').run();
+  }
+}
+
 export function getDb(): SqliteDatabase {
   if (db) {
     return db;
@@ -22,6 +31,7 @@ export function getDb(): SqliteDatabase {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.exec(schema);
+  ensureMedicineColumns(db);
 
   return db;
 }

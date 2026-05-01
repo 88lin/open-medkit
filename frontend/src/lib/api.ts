@@ -241,7 +241,7 @@ export async function completeMedicineDraft(
   sourceText?: string
 ) {
   const payload = await request<{
-    data: Partial<Pick<Medicine, 'name' | 'name_en' | 'spec' | 'category' | 'usage_desc'>>;
+    data: Partial<Pick<Medicine, 'brand' | 'name' | 'name_en' | 'spec' | 'category' | 'usage_desc'>>;
   }>('/ai/complete', {
     method: 'POST',
     headers: {

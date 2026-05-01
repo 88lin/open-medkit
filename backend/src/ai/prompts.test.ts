@@ -22,6 +22,7 @@ describe('buildParsePrompt', () => {
   it('includes expected JSON field names', () => {
     const prompt = buildParsePrompt(testCategories);
     expect(prompt).toContain('"name"');
+    expect(prompt).toContain('"brand"');
     expect(prompt).toContain('"name_en"');
     expect(prompt).toContain('"expires_at"');
     expect(prompt).toContain('"category"');
@@ -53,6 +54,7 @@ describe('buildDraftCompletionPrompt', () => {
   it('mentions expected fields', () => {
     const prompt = buildDraftCompletionPrompt(testCategories);
     expect(prompt).toContain('name');
+    expect(prompt).toContain('brand');
     expect(prompt).toContain('name_en');
     expect(prompt).toContain('spec');
     expect(prompt).toContain('category');
@@ -67,6 +69,7 @@ describe('buildImageParseMessages', () => {
     expect(messages[0].role).toBe('system');
     expect(messages[1].role).toBe('user');
     expect(Array.isArray(messages[1].content)).toBe(true);
+    expect(JSON.stringify(messages[1].content)).toContain('brand');
   });
 
   it('includes image_url in user message content', () => {

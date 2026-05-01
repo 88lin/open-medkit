@@ -58,6 +58,7 @@ export async function completeMedicineDraft(
   return {
     data: {
       name: typeof parsed.name === 'string' ? parsed.name : '',
+      brand: typeof parsed.brand === 'string' ? parsed.brand : '',
       name_en: typeof parsed.name_en === 'string' ? parsed.name_en : '',
       spec: typeof parsed.spec === 'string' ? parsed.spec : '',
       category: typeof parsed.category === 'string' ? parsed.category : '',

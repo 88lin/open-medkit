@@ -10,6 +10,7 @@ import {
 interface MedicineRecord {
   id: number;
   name: string;
+  brand: string | null;
   name_en: string | null;
   spec: string | null;
   quantity: string | null;
@@ -24,6 +25,7 @@ interface MedicineRecord {
 
 interface MedicineInput {
   name: string;
+  brand?: string;
   name_en?: string;
   spec?: string;
   quantity?: string;
@@ -47,6 +49,7 @@ function normalizeExpiringDays(value?: string) {
 function normalizeMedicineInput(input: Partial<MedicineInput>) {
   return {
     name: input.name?.trim() || '',
+    brand: input.brand?.trim() || '',
     name_en: input.name_en?.trim() || '',
     spec: input.spec?.trim() || '',
     quantity: input.quantity?.trim() || '',
@@ -61,6 +64,7 @@ function normalizeMedicineInput(input: Partial<MedicineInput>) {
 function rowToMedicine(row: MedicineRecord) {
   return {
     ...row,
+    brand: row.brand || '',
     name_en: row.name_en || '',
     spec: row.spec || '',
     quantity: row.quantity || '',
@@ -221,8 +225,8 @@ medicinesRouter.post('/import', async (c) => {
     const insert = db.prepare(
       `
         INSERT INTO medicines
-        (name, name_en, spec, quantity, expires_at, category, usage_desc, location, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (name, brand, name_en, spec, quantity, expires_at, category, usage_desc, location, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `
     );
 
@@ -243,6 +247,7 @@ medicinesRouter.post('/import', async (c) => {
         try {
           insert.run(
             normalized.name,
+            normalized.brand || null,
             normalized.name_en || null,
             normalized.spec || null,
             normalized.quantity || null,
@@ -350,12 +355,13 @@ medicinesRouter.post('/', async (c) => {
       .prepare(
         `
           INSERT INTO medicines
-          (name, name_en, spec, quantity, expires_at, category, usage_desc, location, notes)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          (name, brand, name_en, spec, quantity, expires_at, category, usage_desc, location, notes)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
       )
       .run(
         payload.name,
+        payload.brand || null,
         payload.name_en || null,
         payload.spec || null,
         payload.quantity || null,
@@ -403,11 +409,12 @@ medicinesRouter.put('/:id', async (c) => {
     db.prepare(
       `
         UPDATE medicines
-        SET name = ?, name_en = ?, spec = ?, quantity = ?, expires_at = ?, category = ?, usage_desc = ?, location = ?, notes = ?
+        SET name = ?, brand = ?, name_en = ?, spec = ?, quantity = ?, expires_at = ?, category = ?, usage_desc = ?, location = ?, notes = ?
         WHERE id = ?
       `
     ).run(
       payload.name,
+      payload.brand || null,
       payload.name_en || null,
       payload.spec || null,
       payload.quantity || null,

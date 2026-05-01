@@ -1,5 +1,11 @@
 import { useTimezone } from '../hooks/useTimezone';
-import { formatDate, getMedicineStatus, getStatusText, daysUntilExpiry } from '../lib/utils';
+import {
+  formatDate,
+  formatMedicineDisplayName,
+  getMedicineStatus,
+  getStatusText,
+  daysUntilExpiry,
+} from '../lib/utils';
 import type { Medicine } from '../types';
 
 interface MedCardProps {
@@ -60,7 +66,7 @@ export function MedCard({ medicine, expiringDays, onOpen }: MedCardProps) {
         <div className="mb-3 w-full">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 truncate text-[19px] font-semibold leading-tight text-ink">
-              {medicine.name}
+              {formatMedicineDisplayName(medicine)}
             </div>
             <span
               className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-medium ${styles.badge}`}

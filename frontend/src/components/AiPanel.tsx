@@ -6,7 +6,13 @@ import type { Components } from 'react-markdown';
 import { DismissibleNotice } from './DismissibleNotice';
 import { useTimezone } from '../hooks/useTimezone';
 import { queryMedicines, queryMedicinesStream } from '../lib/api';
-import { daysUntilExpiry, formatDate, getMedicineStatus, getStatusText } from '../lib/utils';
+import {
+  daysUntilExpiry,
+  formatDate,
+  formatMedicineDisplayName,
+  getMedicineStatus,
+  getStatusText,
+} from '../lib/utils';
 import type { Medicine, Settings } from '../types';
 
 interface AiPanelProps {
@@ -134,6 +140,7 @@ function buildSuggestionChips(medicines: Medicine[], timezone: string, expiringD
     status: getMedicineStatus(medicine.expires_at, timezone, expiringDays),
     corpus: [
       medicine.name,
+      medicine.brand,
       medicine.name_en,
       medicine.spec,
       medicine.category,
@@ -317,7 +324,9 @@ function AssistantMedicineResults({
           >
             <div className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${getDotClass(status)}`} />
             <div className="min-w-0">
-              <div className="text-[13px] font-medium text-ink">{medicine.name}</div>
+              <div className="text-[13px] font-medium text-ink">
+                {formatMedicineDisplayName(medicine)}
+              </div>
               <div className="mt-1 text-[11px] text-ink3">
                 {buildMedicineMeta(medicine) || '暂无附加信息'}
               </div>

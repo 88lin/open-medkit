@@ -1,8 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { daysUntilExpiry, formatDate, getMedicineStatus, getStatusText } from './utils';
+import {
+  daysUntilExpiry,
+  formatDate,
+  formatMedicineDisplayName,
+  getMedicineStatus,
+  getStatusText,
+} from './utils';
 
 const timezone = 'Asia/Shanghai';
+
+describe('formatMedicineDisplayName', () => {
+  it('prefixes the medicine name with brand when available', () => {
+    expect(formatMedicineDisplayName({ brand: '开瑞坦', name: '氯雷他定' })).toBe(
+      '开瑞坦 · 氯雷他定',
+    );
+  });
+
+  it('returns the medicine name when brand is empty', () => {
+    expect(formatMedicineDisplayName({ brand: '', name: '布洛芬' })).toBe('布洛芬');
+  });
+});
 
 describe('getMedicineStatus', () => {
   beforeEach(() => {

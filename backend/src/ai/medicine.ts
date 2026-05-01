@@ -9,6 +9,7 @@ import type { QueryResponseStyle } from './types';
 export interface MedicineRecord {
   id: number;
   name: string;
+  brand: string | null;
   name_en: string | null;
   spec: string | null;
   quantity: string | null;
@@ -24,6 +25,7 @@ export interface MedicineRecord {
 export function rowToMedicine(row: MedicineRecord) {
   return {
     ...row,
+    brand: row.brand || '',
     name_en: row.name_en || '',
     spec: row.spec || '',
     quantity: row.quantity || '',
@@ -84,6 +86,7 @@ export function getMedicineExpiryState(
 export function normalizeMedicineDraftPayload(parsed: Record<string, unknown>) {
   return {
     name: typeof parsed.name === 'string' ? parsed.name : '',
+    brand: typeof parsed.brand === 'string' ? parsed.brand : '',
     name_en: typeof parsed.name_en === 'string' ? parsed.name_en : '',
     spec: typeof parsed.spec === 'string' ? parsed.spec : '',
     quantity: typeof parsed.quantity === 'string' ? parsed.quantity : '',

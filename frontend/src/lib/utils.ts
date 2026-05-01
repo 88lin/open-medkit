@@ -2,6 +2,17 @@ import type { MedicineStatus } from '../types';
 
 const DAY_IN_MS = 86_400_000;
 
+export function formatMedicineDisplayName(medicine: { name: string; brand?: string }) {
+  const brand = medicine.brand?.trim();
+  const name = medicine.name.trim();
+
+  if (brand && name && brand !== name) {
+    return `${brand} · ${name}`;
+  }
+
+  return name || brand || '';
+}
+
 function parseDateInput(dateStr: string) {
   const [year, month, day] = dateStr.split('-').map(Number);
   return new Date(year, (month || 1) - 1, day || 1, 12, 0, 0, 0);
